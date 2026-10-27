@@ -136,8 +136,14 @@ const getTradingViewData = async (
     );
   }
 
+  // Stocks with no after-hours print return a null postmarket_change and get sorted ahead of
+  // real movers, so restrict each side to the matching sign (gainers > 0, losers < 0)
+  const sessionFilters = marketSession === 'postmarket'
+    ? [{ left: 'postmarket_change', operation: sortOrder === 'desc' ? 'greater' : 'less', right: 0 }]
+    : [];
+
   const payload = {
-    filter: [...baseFilters, ...marketCapFilters],
+    filter: [...baseFilters, ...marketCapFilters, ...sessionFilters],
     options: { lang: 'en' },
     symbols: { query: { types: ['stock'] }, tickers: [] as string[] },
     columns,
@@ -209,16 +215,18 @@ const getTradingViewData = async (
 
 export const getPreMarketData = async (marketCap: 'large' | 'mid' | 'all' = 'all'): Promise<TradingViewData> => {
   try {
-    const [gainers, gappers] = await Promise.all([
+    const [gainers, losersData] = await Promise.all([
       getTradingViewData('premarket_change', 'premarket', 'desc', false, marketCap),
-      getTradingViewData('gap', 'premarket', 'desc', true, marketCap) // Sort by gap for gappers
+      getTradingViewData('premarket_change', 'premarket', 'asc', false, marketCap) // Get losers in ascending order
     ]);
+
+    // Get the actual losers (negative changes) from the ascending sort
+    const losers = losersData.filter(stock => (stock.premarketChange || 0) < 0).slice(0, 10);
 
     return {
       gainers: gainers || [],
-      losers: [],
+      losers: losers || [],
       mostActive: [],
-      gappers: gappers || [],
       lastUpdated: new Date().toLocaleDateString()
     };
   } catch (error) {

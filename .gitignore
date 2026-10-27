@@ -63,3 +63,5 @@ typings/
 /dist
 .DS_Store
 src/commands/Fuck/images/links.json
+src/commands/TickerTracker/ticker_history.json
+package-lock.json

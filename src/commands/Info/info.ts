@@ -1,6 +1,6 @@
 import { Message } from 'discord.js';
 
-import { ICommand } from '../../icommand';
+import { ICommand, SendableMessage } from '../../icommand';
 import { getSymbolInfo, getCompanyInfo, getCompanyNews } from './stockcharts-info';
 
 export const InfoCommand: ICommand = {
@@ -8,7 +8,7 @@ export const InfoCommand: ICommand = {
   helpDescription: '!info aapl',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!info'),
-  command: async (message: Message) => {
+  command: async (message: SendableMessage) => {
     const ticker = message.content.replace('!info', '').trim();
     const info = await getSymbolInfo(ticker);
     const companyInfo = await getCompanyInfo(ticker);
@@ -19,7 +19,7 @@ export const InfoCommand: ICommand = {
         title: ticker.toUpperCase(),
         fields: [
           { name: 'Price', value: info.close },
-          { name: 'News', value: companyNews.slice(0, 10).join('\n') },
+          { name: 'News', value: companyNews.slice(0, 10).join('\n\n') },
           { name: 'Summary', value: companyInfo.slice(0, 1024) },
         ],
       },

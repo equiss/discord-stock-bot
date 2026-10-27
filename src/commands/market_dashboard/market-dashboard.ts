@@ -1,5 +1,5 @@
 import { AttachmentBuilder, Message } from 'discord.js';
-import { ICommand } from '../../icommand';
+import { ICommand, SendableMessage } from '../../icommand';
 import got from 'got';
 
 export const CorrelationCommand: ICommand = {
@@ -7,7 +7,7 @@ export const CorrelationCommand: ICommand = {
   helpDescription: '!corr [days] [tickers]  example: !corr 5 spy,qqq,^vix,btc-usd',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!corr'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   let days = "30";
   let tickers = "SPY,QQQ,IWM,TLT,GLD,USO,UUP,^VIX,BTC-USD";
   const args = message.content.toLowerCase().split(' ');
@@ -47,7 +47,7 @@ export const RealizedVolCommand: ICommand = {
   helpDescription: '!rvol [ticker]',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!rvol'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   let ticker = message.content.toLowerCase().split(' ')[1];
   try
   {
@@ -76,7 +76,7 @@ export const RelRotGraphCommand: ICommand = {
   helpDescription: '!rrg',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!rrg'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   const rrg_set = message.content.split(' ')[1];
 
   try
@@ -107,7 +107,7 @@ export const DressingCommand: ICommand = {
   helpDescription: '!dressing [ticker] [start_date (YYYY-MM-DD)] [end_date (YYYY-MM-DD)]',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!dressing'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   let ticker = "SPY";
   let start_date = "2010-01-01"
   let end_date = "2026-01-01"
@@ -154,7 +154,7 @@ export const VolConeCommand: ICommand = {
   helpDescription: '!cone [ticker] [start_date (YYYY-MM-DD)] [end_date (YYYY-MM-DD)]',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!cone'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   let ticker = "SPY";
   let start_date = "2022-01-01"
   let end_date = "2023-12-31"
@@ -201,7 +201,7 @@ export const PairsCommand: ICommand = {
   helpDescription: '!pairs [ticker 1] [ticker 2] \n This command is a bit involved. Use !pairs help for more info.',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!pairs'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   
   const args = message.content.toLowerCase().split(' ');
   let ticker_1 = "";
@@ -270,7 +270,7 @@ export const CoTCommand: ICommand = {
   helpDescription: '!cot [ticker]',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!cot'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   let ticker = "es";
   const args = message.content.toLowerCase().split(' ');
   if(args.length == 2)
@@ -297,6 +297,7 @@ export const CoTCommand: ICommand = {
           },
           ],
         });
+	    return;
 	}
 	if(ticker == 'list')
 	{
@@ -322,6 +323,7 @@ export const CoTCommand: ICommand = {
           },
           ],
         });
+	    return;
 	}
   try{
     const image = await got(`${process.env.MARKET_DASHBOARD_URI}/cotchart/${ticker}`);
@@ -336,10 +338,13 @@ export const CoTCommand: ICommand = {
   
   } catch(e)
   {
-    console.error(e);
-
+    if (e.response?.statusCode === 404) {
+      await message.channel.send(`No CoT data for \`${ticker}\`. Use **!cot list** to see the products.`);
+    } else {
+      console.error(e);
+    }
   }
- 
+
     return Promise.resolve();
   },
 };
@@ -349,7 +354,7 @@ export const VixBinsCommand: ICommand = {
   helpDescription: '!vixbin',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!vixbin'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   const rrg_set = message.content.split(' ')[1];
 
   try
@@ -381,7 +386,7 @@ export const VixReturnsCommand: ICommand = {
   helpDescription: '!vixnext',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!vixnext'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   const rrg_set = message.content.split(' ')[1];
 
   try
@@ -411,39 +416,29 @@ export const VixReturnsCommand: ICommand = {
 
 export const RelChartCommand: ICommand = {
   name: 'Relative Percent Chart',
-  helpDescription: '!rel [ticker1] [ticker2] [start_date (YYYY-MM-DD)] [end_date (YYYY-MM-DD)]',
+  helpDescription: '!rel [ticker1] [ticker2] ... [start_date (YYYY-MM-DD)] [end_date (YYYY-MM-DD)]',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!rel'),
-  command: async (message: Message, services: any) => {
-  let ticker_1 = "SPY";
-  let ticker_2 = "QQQ"
-  let start_date = "1111-11-11"
-  let end_date = "1111-11-11"
-  const args = message.content.toLowerCase().split(' ');
-  if(args.length == 2)
-  {
-    ticker_1 = args[1];
+  command: async (message: SendableMessage, services: any) => {
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const args = message.content.toLowerCase().split(' ').slice(1);
+  const dates: string[] = [];
+  const tickers: string[] = [];
+
+  for (const arg of args) {
+    if (DATE_RE.test(arg)) {
+      dates.push(arg);
+    } else if (arg.length > 0) {
+      tickers.push(arg);
+    }
   }
-  else if(args.length == 3)
-  {
-    ticker_1 = args[1];
-    ticker_2 = args[2];
-  }
-  else if(args.length == 4)
-  {
-    ticker_1 = args[1];
-	ticker_2 = args[2]
-    start_date = args[3];
-  }
-  else if(args.length == 5)
-  {
-    ticker_1 = args[1];
-	ticker_2 = args[2]
-    start_date = args[3];
-	end_date = args[4]
-  }
+
+  const tickerStr = tickers.length > 0 ? tickers.join(',') : 'SPY,QQQ';
+  const start_date = dates[0] ?? '1111-11-11';
+  const end_date = dates[1] ?? '1111-11-11';
+
   try{
-    const image = await got(`${process.env.MARKET_DASHBOARD_URI}/relChartMain/${ticker_1}/${ticker_2}/${start_date}/${end_date}`);
+    const image = await got(`${process.env.MARKET_DASHBOARD_URI}/relChartMain/${tickerStr}/${start_date}/${end_date}`);
     await message.channel
       .send(
         {
@@ -452,7 +447,7 @@ export const RelChartCommand: ICommand = {
           ],
         },
       );
-  
+
   } catch(e)
   {
     console.error(e);
@@ -468,7 +463,7 @@ export const VolSheetCommand: ICommand = {
   helpDescription: 'Generates tearsheet of vol models',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!vixmodels'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   /* let i_rand =  Math.floor(Math.random() * 100);
   if (i_rand < 20) {
 	await message.reply({ files : ["./src/commands/Fuck/images/vixmemories.png"] })
@@ -489,8 +484,9 @@ export const VixCurveCommand: ICommand = {
   name: 'Vix Curve',
   helpDescription: 'Generates VIX futures curve',
   showInHelp: true,
-  trigger: (msg: Message) => (msg.content.startsWith('!vix')),
-  command: async (message: Message, services: any) => {
+  // word boundary after "!vix" so !vixbin/!vixnext/!vixmodels don't also fire this
+  trigger: (msg: Message) => /^!vix(\s|$)/.test(msg.content),
+  command: async (message: SendableMessage, services: any) => {
     try {
       const res = await got(`${process.env.MARKET_DASHBOARD_URI}/vixCurveMain`, {
         responseType: 'buffer'
@@ -515,25 +511,24 @@ export const MomoDashCommand: ICommand = {
   helpDescription: 'Generates momentum dashboard',
   showInHelp: true,
   trigger: (msg: Message) => (msg.content.startsWith('!market')),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   try{
-    let ftype = '1';
-    const image = await got(`${process.env.MARKET_DASHBOARD_URI}/momo_dash/${ftype}`);
+    //let ftype = '1';
+    //const image = await got(`${process.env.MARKET_DASHBOARD_URI}/momo_dash/${ftype}`);
 
-    await message.channel
-      .send(
-        {
-          files: [
-            image.rawBody,
-          ],
-        },
-      );
+    //await message.channel
+    //  .send(
+    //    {
+    //      files: [
+    //        image.rawBody,
+    //      ],
+    //    },
+    //  );
 	  
-	const image2 = await got(`https://raw.githubusercontent.com/Poppingfresh/CoT_Repo/refs/heads/main/stockbee_tab.png`);
-	await message.channel.send({files: [image2.rawBody]});
-    
-  const image3 = await got(`https://raw.githubusercontent.com/Poppingfresh/CoT_Repo/refs/heads/main/market_tab3.png`);
-	await message.channel.send({files: [image3.rawBody]});
+	const cotRepoPath = process.env.COT_REPO_PATH ?? '/home/data/CoT_Repo';
+	await message.channel.send({files: [`${cotRepoPath}/stockbee_tab.png`]});
+
+  await message.channel.send({files: [`${cotRepoPath}/market_tab3.png`]});
   
   } catch(e)
       {
@@ -549,7 +544,7 @@ export const MaxLossCommand: ICommand = {
   helpDescription: '!maxloss [ticker]',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!maxloss'),
-  command: async (message: Message, services: any) => {
+  command: async (message: SendableMessage, services: any) => {
   let ticker = "AAPL";
   const args = message.content.toLowerCase().split(' ');
   if(args.length == 2)
@@ -584,11 +579,14 @@ export const VRPCommand: ICommand = {
   helpDescription: '!vrp',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!vrp'),
-  command: async (message: Message, services: any) => {
-	const image = await got(`https://raw.githubusercontent.com/Poppingfresh/CoT_Repo/refs/heads/main/Figs/3_1_IV_contango.png`);
-	await message.channel.send({files: [image.rawBody]});
-	const image2 = await got(`https://raw.githubusercontent.com/Poppingfresh/CoT_Repo/refs/heads/main/Figs/VRPremia.png`);
-	await message.channel.send({files: [image2.rawBody]});
-	return Promise.resolve();
+  command: async (message: SendableMessage, services: any) => {
+    try {
+      const cotRepoPath = process.env.COT_REPO_PATH ?? '/home/data/CoT_Repo';
+      await message.channel.send({files: [`${cotRepoPath}/Figs/3_1_IV_contango.png`]});
+      await message.channel.send({files: [`${cotRepoPath}/Figs/VRPremia.png`]});
+    } catch (e) {
+      console.error('VRPCommand fetch error:', e);
+    }
+    return Promise.resolve();
   },
 };

@@ -1,5 +1,5 @@
 import { Message } from 'discord.js';
-import { ICommand } from '../../icommand';
+import { ICommand, SendableMessage } from '../../icommand';
 import { getFinvizScreenWholeTable } from './finviz-screener';
 import { getPreMarketData, getAfterHoursData, TradingViewStock } from './tradingview-scanner';
 
@@ -10,9 +10,16 @@ export const ScreenerCommand: ICommand = {
   helpDescription: '!screener finviz url',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!screener'),
-  command: async (message: Message) => {
+  command: async (message: SendableMessage) => {
     const url = message.content.replace('!screener', '').trim();
-    const table = await getFinvizScreenWholeTable(url);
+    let table: { [key: string]: string }[];
+    try {
+      table = await getFinvizScreenWholeTable(url);
+    } catch (error) {
+      console.error('Screener command error:', error);
+      message.channel.send('Could not read that screener. Use a finviz link: https://finviz.com/screener/stocks?v=...');
+      return;
+    }
     const arrayLength = Math.min(table.length, 5);
     const fields = table.slice(0, arrayLength).map((value) => ({
       name: value['ticker'] || 'N/A',
@@ -40,7 +47,7 @@ export const BreakoutCommand: ICommand = {
   helpDescription: '!breakout lists stocks breaking out',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!breakout'),
-  command: async (message: Message) => {
+  command: async (message: SendableMessage) => {
     const table = await getFinvizScreenWholeTable(breakingOut);
     const arrayLength = Math.min(table.length, 5);
     const fields = table.slice(0, arrayLength).map((value) => ({
@@ -71,14 +78,14 @@ export const WinnersCommand: ICommand = {
   helpDescription: '!winners (all | mid | large) top winners of the day',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!winners'),
-  command: async (message: Message) => {
+  command: async (message: SendableMessage) => {
     if (message.author.bot) return;
     const cap = message.content.split(' ')[1]
     let i_rand =  Math.floor(Math.random() * 100);
     if (i_rand < 90) {
         let url;
         if (cap == 'large') {
-            url = 'https://finviz.com/screener.ashx?v=111&s=ta_topgainers&f=cap_large';
+            url = 'https://finviz.com/screener.ashx?v=111&s=ta_topgainers&f=cap_largeover';
         } else if (cap == 'mid') {
             url = 'https://finviz.com/screener.ashx?v=111&s=ta_topgainers&f=cap_mid';
         } else {
@@ -120,7 +127,7 @@ export const LosersCommand: ICommand = {
   helpDescription: '!losers (all | mid | large) top Losers of the day',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!losers'),
-  command: async (message: Message) => {
+  command: async (message: SendableMessage) => {
     if (message.author.bot) return;
     const cap = message.content.split(' ')[1]
     let i_rand =  Math.floor(Math.random() * 100);
@@ -129,7 +136,7 @@ export const LosersCommand: ICommand = {
         if (cap == 'large') {
             url = 'https://finviz.com/screener.ashx?v=111&s=ta_toplosers&f=cap_largeover';
         } else if (cap == 'mid') {
-            url = 'https://finviz.com/screener.ashx?v=111&s=ta_toplosers&f=cap_midover';
+            url = 'https://finviz.com/screener.ashx?v=111&s=ta_toplosers&f=cap_mid';
         } else {
             url = 'https://finviz.com/screener.ashx?v=110&s=ta_toplosers';
         }
@@ -194,10 +201,10 @@ const formatTradingViewFields = (stocks: TradingViewStock[], session: 'premarket
 
 export const PreMarketCommand: ICommand = {
   name: 'PreMarket',
-  helpDescription: '!premarket (all | mid | large) shows premarket gainers, losers, and most active stocks',
+  helpDescription: '!premarket (all | mid | large) shows premarket gainers and losers',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!premarket'),
-  command: async (message: Message) => {
+  command: async (message: SendableMessage) => {
     if (message.author.bot) return;
     
     const cap = message.content.split(' ')[1] as 'large' | 'mid' | 'all';
@@ -214,9 +221,9 @@ export const PreMarketCommand: ICommand = {
         ...formatTradingViewFields(data.gainers, 'premarket', 5),
         {
           name: '\u200b',
-          value: '🤜🔴🤛 **Gappers**',
+          value: '📉 **Top Losers**',
         },
-        ...formatTradingViewFields(data.gappers || [], 'premarket', 5, true),
+        ...formatTradingViewFields(data.losers, 'premarket', 5),
       ];
 
       message.channel.send({
@@ -244,7 +251,7 @@ export const AfterHoursCommand: ICommand = {
   helpDescription: '!afterhours (all | mid | large) shows after-hours gainers, losers, and most active stocks',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('!afterhours'),
-  command: async (message: Message) => {
+  command: async (message: SendableMessage) => {
     if (message.author.bot) return;
     
     const cap = message.content.split(' ')[1] as 'large' | 'mid' | 'all';

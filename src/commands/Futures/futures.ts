@@ -2,7 +2,7 @@ import { Message } from 'discord.js';
 import sharp from 'sharp';
 import got from 'got';
 import fs from 'fs';
-import { ICommand } from '../../icommand';
+import { ICommand, SendableMessage } from '../../icommand';
 import { extractFromOptions } from '../../common';
 import { TickerTracker } from '../../services/tickerTracker';
 
@@ -28,7 +28,7 @@ const getTicker = (name: string): string => {
   return name;
 };
 
-export const updateText = (imgUrl: string, msg: Message, ogTicker: string): void => {
+export const updateText = (imgUrl: string, msg: SendableMessage, ogTicker: string): void => {
   const sharpStream = sharp({
     failOnError: false,
   });
@@ -65,7 +65,7 @@ export const FuturesCommand: ICommand = {
   helpDescription: '$/es will draw es chart',
   showInHelp: true,
   trigger: (msg: Message) => msg.content.startsWith('$/'),
-  command: async (message: Message) => {
+  command: async (message: SendableMessage) => {
     let ticker = message.content.toLowerCase().split(' ')[0].substring(1)
 	if (ticker != '/') {
 		const ogTicker = ticker;
@@ -91,6 +91,11 @@ export const FuturesCommand: ICommand = {
 			  ],
 			},
 		  );
+		TickerTracker.lastTicker(message.author.id, message.id, (sentMessage as Message).id);
+		TickerTracker.postTicker(ogTicker, message.author.id, message.member?.displayName ?? message.author.username);
+		if (ogTicker === '/ym' && Math.random() < 0.2) {
+			await message.channel.send({ files: ["./src/commands/Fuck/images/djia50k.gif"] });
+		}
 		return Promise.resolve();
 	} else {
 		let ticker = message.content.toLowerCase().split(' ')[0].substring(2);
@@ -113,6 +118,8 @@ export const FuturesCommand: ICommand = {
 				],
 			  },
 			);
+			TickerTracker.lastTicker(message.author.id, message.id, (sentMessage as Message).id);
+			TickerTracker.postTicker(ogTicker, message.author.id, message.member?.displayName ?? message.author.username);
 		  } else {
 			const fs = require('fs')
 			const fileContent = fs.readFileSync('./src/commands/Stocks/invalidMsg.txt', 'utf-8');

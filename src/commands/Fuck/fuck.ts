@@ -136,7 +136,7 @@ export const ManateeCommand: ICommand = {
 			await message.reply("**~MODS~!!!**... Manatee probably");
 			break;
 		case 4:
-			await message.reply({ files : ["./src/commands/Fuck/images/Manatee3.png"] });
+			await message.reply({ files : ["./src/commands/Fuck/images/Manatee4.png"] });
 			break;
 		default:
 			await message.reply({ files : ["./src/commands/Fuck/images/Manatee2.jpg"] });
@@ -278,7 +278,7 @@ export const NewLowCommand: ICommand = {
         } else if (i_rand >= 20 && i_rand < 40) {
             await message.reply({ files : ["./src/commands/Fuck/images/newLows2.gif"] })
         } else if (i_rand >= 40 && i_rand < 60) {
-            await message.reply({ files : ["./src/commands/Fuck/images/newLows3.gif"] })
+            await message.reply({ files : ["./src/commands/Fuck/images/newlows3.gif"] })
         } else if (i_rand >= 60 && i_rand < 80) {
             await message.reply({ files : ["./src/commands/Fuck/images/newLows4.gif"] })
         }
@@ -332,7 +332,7 @@ export const ZephCommand: ICommand = {
 			await message.reply(line)
 			break;
 		case 3:
-			await message.reply({ files : ["./src/commands/Fuck/images/Zeph3.jpg"] })
+			await message.reply({ files : ["./src/commands/Fuck/images/Zeph4.ppg"] })
 			break;
         case 4:
 			await message.reply({ files : ["./src/commands/Fuck/images/Zeph1.png"] })
@@ -435,6 +435,7 @@ export const JoshCommand: ICommand = {
   		"./src/commands/Fuck/images/Josh7.png",
 		"./src/commands/Fuck/images/Josh8.png",
         "./src/commands/Fuck/images/Josh9.png",
+        "./src/commands/Fuck/images/Josh10.png",
   		];
 
 	await message.reply({ files : [images[Math.floor(Math.random() * images.length)]] });
@@ -493,11 +494,11 @@ export const HurfCommand: ICommand = {
       const termFound = matches.length > 0;
 
       // If term found: 50/50 Claude vs static. If not found: 80% Claude, 20% static.
-      const claudeChance = termFound ? 0.5 : 0.8;
+      const claudeChance = termFound ? 0.25 : 0.5;
       if (Math.random() < claudeChance) try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
-        const response = await fetch('http://137.184.18.74:3422/hurf', {
+        const response = await fetch('http://localhost:3456/hurf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ keyword: arg }),
@@ -506,7 +507,10 @@ export const HurfCommand: ICommand = {
         clearTimeout(timeout);
         if (response.ok) {
           const data = await response.json() as { phrase: string };
-          line1 = data.phrase;
+          const refusalPattern = /^(i'?m?\s*(sorry|unable|can't|cannot)|i apologize)/i;
+          if (!refusalPattern.test(data.phrase.trim())) {
+            line1 = data.phrase;
+          }
         }
       } catch (err) {
         console.error('HurfBot API unavailable, falling back to static file:', err);
